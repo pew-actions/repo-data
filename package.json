@@ -1,0 +1,22 @@
+{
+  "name": "repo-data",
+  "version": "1.0.0",
+  "description": "GitHub action to collect repository data",
+  "main": "lib/main.js",
+  "scripts": {
+    "build": "tsc && ncc build"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.36.1",
+    "typescript": "^4.8.4"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/github": "^6.0.0",
+    "@octokit/app": "^14.0.2",
+    "@octokit/core": "^5.1.0"
+  },
+  "engines": {
+    "node": ">= 20"
+  }
+}

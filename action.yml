@@ -1,0 +1,30 @@
+name: pew-actions/repo-data
+description: Acquire repository data
+
+inputs:
+  repository:
+    description: 'Repostiory to access'
+    required: true
+  ref:
+    description: 'Ref of the repostiory to access'
+    required: true
+  provider:
+    description: 'Source control provider'
+    default: 'github'
+  files:
+    description: 'A semicolon-separated list of files to retrieve. These will automatically be converted to environmental variable keys. See README for more details'
+
+outputs:
+  commit:
+    description: 'The commit SHA (or other equivalent) that is suitable for pew-actions/checkout'
+  token:
+    description: 'Access token suitable for pew-actions/checkout'
+  build-template:
+    description: 'Template for build name'
+  build-short:
+    description: 'Short name for a build'
+
+runs:
+  using: node20
+  main: dist/index.js
+  post: dist/index.js
