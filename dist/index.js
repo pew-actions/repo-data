@@ -133,6 +133,7 @@ function run() {
             const ref = core.getInput('ref');
             if (!ref) {
                 core.setFailed('No ref supplied to the action');
+                return;
             }
             const provider = core.getInput('provider');
             if (!provider) {
