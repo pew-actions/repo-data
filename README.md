@@ -12,14 +12,17 @@ GitHub
 This defaults to the PlayEveryWare builder applciation
 `env.PEW_GITHUB_KEY`: Private key used for authentication with the GitHub application.
 
-outputs:
-`outputs.token`: Token that can be used to fetch from the repository with pew-actions/checkout
 
 GitLab
 ------
+`env.PEW_GITLAB_TOKEN`: Access Token used for authentication with the Gitlab application.
 
 Bitbucket
 ---------
+
+Outputs
+-------
+`outputs.token`: Token that can be used to fetch from the repository with pew-actions/checkout
 
 ## File content examples
 

@@ -4,6 +4,7 @@ import * as buildname from './buildname'
 
 // Providers
 import * as github from './provider/github'
+import * as gitlab from './provider/gitlab'
 
 type SourceProviderFactory = () => Promise<SourceProvider>;
 
@@ -12,7 +13,8 @@ type SourceProviderMap  = {
 };
 
 const allProviders : SourceProviderMap = {
-  github: github.create
+  github: github.create,
+  gitlab: gitlab.create,
 }
 
 async function run(): Promise<void> {
