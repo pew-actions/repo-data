@@ -310,11 +310,32 @@ function run(repository, ref, files) {
         if (commitData.type === 'error') {
             throw new Error(commitData.error.message);
         }
-        if (!commitData.values || commitData.values.length !== 1) {
-            throw new Error(`Failed to find ref '${ref}'`);
+        var commit = undefined;
+        const numCommits = commitData.values ? commitData.values.length : 0;
+        if (numCommits === 1) {
+            commit = commitData.values[0].target;
         }
-        const commitSha = commitData.values[0].target.hash;
-        const commitDate = new Date(commitData.values[0].target.date);
+        else if (numCommits > 1) {
+            throw new Error(`Multiple commits resovled for ref '${ref}' ?!?!`);
+        }
+        else {
+            // is the ref a SHA1 hash?
+            if (!ref.match(/^[a-fA-F0-9]{40}$/)) {
+                throw new Error(`Failed to find ref '${ref}'`);
+            }
+            const commitResponse = yield fetch(`https://api.bitbucket.org/2.0/repositories/${workspace}/${project}/commit/${ref}`, {
+                headers: {
+                    Authorization: basicAuth,
+                },
+            });
+            const data = yield commitResponse.json();
+            if (data.type === 'error') {
+                throw new Error(data.error.message);
+            }
+            commit = data;
+        }
+        const commitSha = commit.hash;
+        const commitDate = new Date(commit.date);
         // fetch files
         var repoFiles = [];
         for (const path of files) {
