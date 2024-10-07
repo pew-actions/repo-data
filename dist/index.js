@@ -285,8 +285,10 @@ function run(repository, ref, files) {
         }
         core.setSecret(password);
         core.saveState('bitbucketPassword', password);
-        const basicAuth = `Basic ${btoa(username + ':' + password)}`;
-        core.setSecret(basicAuth);
+        const token = username + ':' + password;
+        const encodedToken = btoa(token);
+        core.setSecret(encodedToken);
+        const basicAuth = `Basic ${encodedToken}`;
         const repositoryUri = new URL(repository);
         const parts = repositoryUri.pathname.split('/');
         if (parts.length !== 3) {
@@ -334,7 +336,7 @@ function run(repository, ref, files) {
             }
         }
         return {
-            token: basicAuth,
+            token: token,
             commit: commitSha,
             commitDate: commitDate,
             files: repoFiles,
