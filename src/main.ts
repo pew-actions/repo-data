@@ -5,6 +5,7 @@ import * as buildname from './buildname'
 // Providers
 import * as github from './provider/github'
 import * as gitlab from './provider/gitlab'
+import * as bitbucket from './provider/bitbucket'
 
 type SourceProviderFactory = () => Promise<SourceProvider>;
 
@@ -15,6 +16,7 @@ type SourceProviderMap  = {
 const allProviders : SourceProviderMap = {
   github: github.create,
   gitlab: gitlab.create,
+  bitbucket: bitbucket.create,
 }
 
 async function run(): Promise<void> {
