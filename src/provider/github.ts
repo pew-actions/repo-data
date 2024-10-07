@@ -2,9 +2,9 @@ import * as core from '@actions/core'
 import { Octokit } from '@octokit/core'
 import { App as GithubApp } from '@octokit/app'
 import { getOctokit } from '@actions/github'
-import { RepositoryInfo, RepositoryFile, FileRequest, SourceProvider } from '../types'
+import { RepositoryInfo, RepositoryFile, SourceProvider } from '../types'
 
-async function run(repository: string, ref: string, files: FileRequest[]): Promise<RepositoryInfo> {
+async function run(repository: string, ref: string, files: string[]): Promise<RepositoryInfo> {
   // validate GitHub inputs
   const applicationId = process.env.PEW_GITHUB_APPID || '239145'
   if (!applicationId) {
@@ -86,23 +86,23 @@ async function run(repository: string, ref: string, files: FileRequest[]): Promi
 
   // get files
   var repoFiles: RepositoryFile[] = []
-  for (const file of files) {
+  for (const path of files) {
     try {
       const { data } = await github.rest.repos.getContent({
         owner: repositoryOwner,
         repo: repositoryName,
         ref: commitSha,
-        path: file.path,
+        path: path,
       })
 
       const buffer = Buffer.from((data as any).content, (data as any).encoding)
       repoFiles.push({
-        path: file.path,
+        path: path,
         content: buffer.toString(),
       })
     } catch (err: any) {
-      if (file.required || err.name !== 'HttpError' || err.status !== 404 ) {
-        core.error(`Failed to get file '${file.path}'`)
+      if (err.name !== 'HttpError' || err.status !== 404 ) {
+        core.error(`Failed to get file '${path}'`)
         throw err
       }
     }

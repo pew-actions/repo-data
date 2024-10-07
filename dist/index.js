@@ -136,9 +136,9 @@ function run() {
                 return;
             }
             // parse requested files
-            const filePathToEnv = {};
+            const filePathToEnv = new Map();
+            const requiredFiles = new Set();
             const fileParts = core.getInput('files').split(';');
-            var files = [];
             for (const fileDesc of fileParts) {
                 const parts = fileDesc.split('|');
                 if (parts.length === 2) {
@@ -148,11 +148,10 @@ function run() {
                         path = path.substr(0, path.length - 1);
                     }
                     const env = parts[1].trim();
-                    filePathToEnv[path] = env;
-                    files.push({
-                        path: path,
-                        required: required,
-                    });
+                    filePathToEnv.set(path, env);
+                    if (required) {
+                        requiredFiles.add(path);
+                    }
                 }
             }
             const providerFactory = allProviders[provider.toLowerCase()];
@@ -160,7 +159,7 @@ function run() {
                 throw new Error(`Unknown provider '${provider}'`);
             }
             const providerImpl = yield providerFactory();
-            const repoInfo = yield providerImpl.getInfo(repository, ref, files);
+            const repoInfo = yield providerImpl.getInfo(repository, ref, Array.from(filePathToEnv.keys()));
             core.setOutput('token', repoInfo.token);
             core.setOutput('commit', repoInfo.commit);
             console.log(`Resolved ${ref} to: ${repoInfo.commit}`);
@@ -177,14 +176,19 @@ function run() {
             console.log(`  short: ${buildName.short}`);
             // export files
             for (const file of repoInfo.files) {
-                const envForFile = filePathToEnv[file.path];
+                const envForFile = filePathToEnv.get(file.path);
                 if (!envForFile) {
                     core.warning(`Provider exported unerequested file '${file.path}'`);
                 }
                 else {
                     core.exportVariable(envForFile, file.content);
                     console.log(`Exporting file '${file.path}' as environment variable '${envForFile}'`);
+                    requiredFiles.delete(file.path);
                 }
+            }
+            if (requiredFiles.size > 0) {
+                const files = Array.from(requiredFiles.keys()).map(path => `\`${path}\``);
+                throw new Error(`Failed to export required files: ${files.join(', ')}`);
             }
         }
         catch (err) {
@@ -361,23 +365,23 @@ function run(repository, ref, files) {
         const commitDate = commitResponse.commit.committer.date;
         // get files
         var repoFiles = [];
-        for (const file of files) {
+        for (const path of files) {
             try {
                 const { data } = yield github.rest.repos.getContent({
                     owner: repositoryOwner,
                     repo: repositoryName,
                     ref: commitSha,
-                    path: file.path,
+                    path: path,
                 });
                 const buffer = Buffer.from(data.content, data.encoding);
                 repoFiles.push({
-                    path: file.path,
+                    path: path,
                     content: buffer.toString(),
                 });
             }
             catch (err) {
-                if (file.required || err.name !== 'HttpError' || err.status !== 404) {
-                    core.error(`Failed to get file '${file.path}'`);
+                if (err.name !== 'HttpError' || err.status !== 404) {
+                    core.error(`Failed to get file '${path}'`);
                     throw err;
                 }
             }

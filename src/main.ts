@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import { RepositoryInfo, FileRequest, SourceProvider } from './types'
+import { RepositoryInfo, SourceProvider } from './types'
 import * as buildname from './buildname'
 
 // Providers
@@ -39,9 +39,9 @@ async function run(): Promise<void> {
     }
 
     // parse requested files
-    const filePathToEnv = {}
+    const filePathToEnv: Map<string, string> = new Map()
+    const requiredFiles: Set<String> = new Set()
     const fileParts = core.getInput('files').split(';')
-    var files: FileRequest[] = []
     for (const fileDesc of fileParts) {
       const parts = fileDesc.split('|')
       if (parts.length === 2) {
@@ -52,11 +52,10 @@ async function run(): Promise<void> {
         }
 
         const env = parts[1].trim()
-        filePathToEnv[path] = env
-        files.push({
-          path: path,
-          required: required,
-        })
+        filePathToEnv.set(path, env)
+        if (required) {
+          requiredFiles.add(path)
+        }
       }
     }
 
@@ -66,7 +65,7 @@ async function run(): Promise<void> {
     }
 
     const providerImpl = await providerFactory()
-    const repoInfo: RepositoryInfo = await providerImpl.getInfo(repository, ref, files)
+    const repoInfo: RepositoryInfo = await providerImpl.getInfo(repository, ref, Array.from(filePathToEnv.keys()))
     core.setOutput('token', repoInfo.token)
     core.setOutput('commit', repoInfo.commit)
     console.log(`Resolved ${ref} to: ${repoInfo.commit}`)
@@ -85,13 +84,19 @@ async function run(): Promise<void> {
 
     // export files
     for (const file of repoInfo.files) {
-      const envForFile = filePathToEnv[file.path]
+      const envForFile = filePathToEnv.get(file.path)
       if (!envForFile) {
         core.warning(`Provider exported unerequested file '${file.path}'`)
       } else {
         core.exportVariable(envForFile, file.content)
         console.log(`Exporting file '${file.path}' as environment variable '${envForFile}'`)
+        requiredFiles.delete(file.path)
       }
+    }
+
+    if (requiredFiles.size > 0) {
+      const files = Array.from(requiredFiles.keys()).map(path => `\`${path}\``)
+      throw new Error(`Failed to export required files: ${files.join(', ')}`)
     }
 
   } catch (err: any) {
