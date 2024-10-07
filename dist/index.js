@@ -172,7 +172,7 @@ function run() {
             const buildName = yield buildname.generate({
                 ref: ref,
                 commit: repoInfo.commit,
-                date: new Date(),
+                date: repoInfo.commitDate,
             });
             core.setOutput('build-template', buildName.template);
             core.setOutput('build-short', buildName.short);
