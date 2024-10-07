@@ -115,9 +115,11 @@ const buildname = __importStar(__nccwpck_require__(5581));
 // Providers
 const github = __importStar(__nccwpck_require__(4498));
 const gitlab = __importStar(__nccwpck_require__(5965));
+const bitbucket = __importStar(__nccwpck_require__(4815));
 const allProviders = {
     github: github.create,
     gitlab: gitlab.create,
+    bitbucket: bitbucket.create,
 };
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -226,6 +228,136 @@ if (!core.getState('isPost')) {
 else {
     post();
 }
+
+
+/***/ }),
+
+/***/ 4815:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.create = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+function run(repository, ref, files) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // validate Bitbucket inputs
+        const username = process.env.PEW_BITBUCKET_USERNAME;
+        if (!username) {
+            throw new Error('Bitbucket repositories must supply `env.PEW_BITBUCKET_USERNAME');
+        }
+        const password = process.env.PEW_BITBUCKET_PASSWORD;
+        if (!password) {
+            throw new Error('Bitbucket repositories must supply `env.PEW_BITBUCKET_PASSWORD`');
+        }
+        core.setSecret(password);
+        core.saveState('bitbucketPassword', password);
+        const basicAuth = `Basic ${btoa(username + ':' + password)}`;
+        core.setSecret(basicAuth);
+        const repositoryUri = new URL(repository);
+        const parts = repositoryUri.pathname.split('/');
+        if (parts.length !== 3) {
+            throw new Error(`Malformed bitbucket repository '${repository}'`);
+        }
+        ///TODO(mendsley): Look into delegating access token to workflow-scoped
+        const workspace = parts[1];
+        const project = parts[2];
+        const commitResponse = yield fetch(`https://api.bitbucket.org/2.0/repositories/${workspace}/${project}/refs?` +
+            new URLSearchParams({
+                q: `name="${ref}"`,
+            }), {
+            headers: {
+                Authorization: basicAuth,
+            },
+        });
+        const commitData = yield commitResponse.json();
+        if (commitData.type === 'error') {
+            throw new Error(commitData.error.message);
+        }
+        if (!commitData.values || commitData.values.length !== 1) {
+            throw new Error(`Failed to find ref '${ref}'`);
+        }
+        const commitSha = commitData.values[0].target.hash;
+        const commitDate = new Date(commitData.values[0].target.date);
+        // fetch files
+        var repoFiles = [];
+        for (const path of files) {
+            const response = yield fetch(`https://api.bitbucket.org/2.0/repositories/${workspace}/${project}/src/${commitSha}/${path}`, {
+                headers: {
+                    Authorization: basicAuth,
+                    Accept: 'application/json',
+                },
+            });
+            if (response.ok) {
+                repoFiles.push({
+                    path: path,
+                    content: yield response.text(),
+                });
+            }
+            else {
+                if (response.status !== 404) {
+                    throw new Error(`Failed to fetch '${path}': ${response.status}: ${response.statusText}`);
+                }
+            }
+        }
+        return {
+            token: basicAuth,
+            commit: commitSha,
+            commitDate: commitDate,
+            files: repoFiles,
+        };
+    });
+}
+function post() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const password = core.getState('bitbucketPassword');
+        if (password) {
+            ///TODO(mendsley): Look into delegating access token to workflow-scoped
+        }
+    });
+}
+function create() {
+    return __awaiter(this, void 0, void 0, function* () {
+        return {
+            getInfo: run,
+            postAction: post,
+        };
+    });
+}
+exports.create = create;
 
 
 /***/ }),

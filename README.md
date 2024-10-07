@@ -19,6 +19,9 @@ GitLab
 
 Bitbucket
 ---------
+This repository currently uses App Passwords for Bitbucket
+`env.PEW_BITBUCKET_USERNAME`: Bitbucket username
+`env.PEW_BITBUCKET_PASSWORD`: Bitbucket app password
 
 Outputs
 -------
