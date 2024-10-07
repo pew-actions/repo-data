@@ -16,8 +16,12 @@ async function run(repository: string, ref: string, files: string[]): Promise<Re
   core.setSecret(password)
   core.saveState('bitbucketPassword', password)
 
-  const basicAuth = `Basic ${ btoa(username + ':' + password) }`
-  core.setSecret(basicAuth)
+  const token = username + ':' + password
+  const encodedToken = btoa(token)
+  core.setSecret(encodedToken)
+
+
+  const basicAuth = `Basic ${encodedToken}`
 
   const repositoryUri = new URL(repository)
   const parts = repositoryUri.pathname.split('/')
@@ -79,7 +83,7 @@ async function run(repository: string, ref: string, files: string[]): Promise<Re
   }
 
   return {
-    token: basicAuth,
+    token: token,
     commit: commitSha,
     commitDate: commitDate,
     files: repoFiles,
