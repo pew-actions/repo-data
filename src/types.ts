@@ -1,8 +1,3 @@
-export type FileRequest = {
-  path: string
-  required: boolean
-}
-
 export type RepositoryFile = {
   path: string
   content: string
@@ -16,7 +11,7 @@ export type RepositoryInfo = {
 }
 
 export interface SourceProvider {
-  getInfo: (repository: string, ref: string, files: FileRequest[]) => Promise<RepositoryInfo>
+  getInfo: (repository: string, ref: string, files: string[]) => Promise<RepositoryInfo>
   postAction: () => Promise<void>
 }
 
