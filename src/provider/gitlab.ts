@@ -2,14 +2,14 @@ import * as core from '@actions/core'
 import { Gitlab } from '@gitbeaker/rest'
 import { RepositoryInfo, RepositoryFile, SourceProvider } from '../types'
 
-async function run(repository: string, ref: string, files: string[]): Promise<RepositoryInfo> {
+async function run(repositories: string[], ref: string, files: string[]): Promise<RepositoryInfo> {
   // validate Gitlab inputs
   const token = process.env.PEW_GITLAB_TOKEN
   if (!token) {
     throw new Error('Gitlab repositories must supply `env.PEW_GITLAB_TOKEN`')
   }
 
-  const repositoryUri = new URL(repository)
+  const repositoryUri = new URL(repositories[0])
   const projectName = repositoryUri.pathname.substr(1)
 
   const api = new Gitlab({

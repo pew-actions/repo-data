@@ -11,7 +11,7 @@ export type RepositoryInfo = {
 }
 
 export interface SourceProvider {
-  getInfo: (repository: string, ref: string, files: string[]) => Promise<RepositoryInfo>
+  getInfo: (repositories: string[], ref: string, files: string[]) => Promise<RepositoryInfo>
   postAction: () => Promise<void>
 }
 

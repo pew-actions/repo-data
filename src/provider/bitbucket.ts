@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import { RepositoryInfo, RepositoryFile, SourceProvider } from '../types'
 
-async function run(repository: string, ref: string, files: string[]): Promise<RepositoryInfo> {
+async function run(repositories: string[], ref: string, files: string[]): Promise<RepositoryInfo> {
   // validate Bitbucket inputs
   const username = process.env.PEW_BITBUCKET_USERNAME
   if (!username) {
@@ -23,10 +23,10 @@ async function run(repository: string, ref: string, files: string[]): Promise<Re
 
   const basicAuth = `Basic ${encodedToken}`
 
-  const repositoryUri = new URL(repository)
+  const repositoryUri = new URL(repositories[0])
   const parts = repositoryUri.pathname.split('/')
   if (parts.length !== 3) {
-    throw new Error(`Malformed bitbucket repository '${repository}'`)
+    throw new Error(`Malformed bitbucket repository '${repositories[0]}'`)
   }
 
   ///TODO(mendsley): Look into delegating access token to workflow-scoped
