@@ -4,7 +4,7 @@ import { App as GithubApp } from '@octokit/app'
 import { getOctokit } from '@actions/github'
 import { RepositoryInfo, RepositoryFile, SourceProvider } from '../types'
 
-async function run(repository: string, ref: string, files: string[]): Promise<RepositoryInfo> {
+async function run(repositories: string[], ref: string, files: string[]): Promise<RepositoryInfo> {
   // validate GitHub inputs
   const applicationId = process.env.PEW_GITHUB_APPID || '239145'
   if (!applicationId) {
@@ -16,10 +16,13 @@ async function run(repository: string, ref: string, files: string[]): Promise<Re
     throw new Error('GitHub repositories must supply `env.PEW_GITHUB_KEY`')
   }
 
-  const parts = repository.split('/')
+  // we'll use the first entry in the repositories to determine the owner. All other private repos must be under the same owner
+  console.log(`Received repositories: '${repositories}'`)
+  const parts = repositories[0].split('/')
   if (parts.length !== 2) {
-    throw new Error(`Invalid repository format for '${repository}'`)
+    throw new Error(`Invalid repository format for '${repositories[0]}'`)
   }
+
   const repositoryOwner = parts[0]
   const repositoryName = parts[1]
 
@@ -34,7 +37,7 @@ async function run(repository: string, ref: string, files: string[]): Promise<Re
   }
 
   // find the installation id for the repository
-  console.log(`Determining installation id for repository '${repository}'`)
+  console.log(`Determining installation id for repository '${repositories[0]}'`)
   var installationId: number | null = null
   for await (const {installation} of app.eachInstallation.iterator()) {
     if (installation.account!.login!.toLowerCase() === repositoryOwner.toLowerCase()) {
@@ -43,14 +46,32 @@ async function run(repository: string, ref: string, files: string[]): Promise<Re
     }
   }
   if (!installationId) {
-    throw new Error(`Failed to find installation id for '${repository}'`)
+    throw new Error(`Failed to find installation id for '${repositories[0]}'`)
   }
+
+  // now split up all the repositories provided into just the names, and pass those to the token request
+  const repositoryNames: string[] = [];
+  repositories.forEach(repository =>
+  {
+      const repository_parts = repository.split('/');
+      if (repository_parts.length < 2 || !repository_parts[1]) 
+      {
+          throw new Error(`Item "${repository}" does not contain a second element.`);
+      }
+
+      if (repository_parts[0] !== repositoryOwner)
+      {
+          throw new Error(`Item "${repository}" is not owned by the same owner as "${repositories[0]}".`);
+      }
+
+      repositoryNames.push(repository_parts[1]);
+  });
 
   // create an access token for the repository
   const octokit = await app.getInstallationOctokit(installationId)
   const { data: accessTokenData } = await octokit.request('POST /app/installations/{installation_id}/access_tokens', {
     installation_id: installationId,
-    repositories: [repositoryName], ///TODO(mendsley): Add support for additional repositories
+    repositories: repositoryNames,
     permissions: {
       contents: 'read',
     },

@@ -125,8 +125,8 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         core.saveState('isPost', true);
         try {
-            const repository = core.getInput('repository');
-            if (!repository) {
+            const repositories = core.getInput('repositories').split(';');
+            if (!repositories) {
                 core.setFailed('No repository supplied to the action');
                 return;
             }
@@ -164,7 +164,7 @@ function run() {
                 throw new Error(`Unknown provider '${provider}'`);
             }
             const providerImpl = yield providerFactory();
-            const repoInfo = yield providerImpl.getInfo(repository, ref, Array.from(filePathToEnv.keys()));
+            const repoInfo = yield providerImpl.getInfo(repositories, ref, Array.from(filePathToEnv.keys()));
             core.setOutput('token', repoInfo.token);
             core.setOutput('commit', repoInfo.commit);
             console.log(`Resolved ${ref} to: ${repoInfo.commit}`);
@@ -273,7 +273,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.create = void 0;
 const core = __importStar(__nccwpck_require__(2186));
-function run(repository, ref, files) {
+function run(repositories, ref, files) {
     return __awaiter(this, void 0, void 0, function* () {
         // validate Bitbucket inputs
         const username = process.env.PEW_BITBUCKET_USERNAME;
@@ -290,10 +290,10 @@ function run(repository, ref, files) {
         const encodedToken = btoa(token);
         core.setSecret(encodedToken);
         const basicAuth = `Basic ${encodedToken}`;
-        const repositoryUri = new URL(repository);
+        const repositoryUri = new URL(repositories[0]);
         const parts = repositoryUri.pathname.split('/');
         if (parts.length !== 3) {
-            throw new Error(`Malformed bitbucket repository '${repository}'`);
+            throw new Error(`Malformed bitbucket repository '${repositories[0]}'`);
         }
         ///TODO(mendsley): Look into delegating access token to workflow-scoped
         const workspace = parts[1];
@@ -436,7 +436,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const core_1 = __nccwpck_require__(6762);
 const app_1 = __nccwpck_require__(4389);
 const github_1 = __nccwpck_require__(5438);
-function run(repository, ref, files) {
+function run(repositories, ref, files) {
     var _a, e_1, _b, _c;
     return __awaiter(this, void 0, void 0, function* () {
         // validate GitHub inputs
@@ -448,9 +448,11 @@ function run(repository, ref, files) {
         if (!privateKey) {
             throw new Error('GitHub repositories must supply `env.PEW_GITHUB_KEY`');
         }
-        const parts = repository.split('/');
+        // we'll use the first entry in the repositories to determine the owner. All other private repos must be under the same owner
+        console.log(`Received repositories: '${repositories}'`);
+        const parts = repositories[0].split('/');
         if (parts.length !== 2) {
-            throw new Error(`Invalid repository format for '${repository}'`);
+            throw new Error(`Invalid repository format for '${repositories[0]}'`);
         }
         const repositoryOwner = parts[0];
         const repositoryName = parts[1];
@@ -463,7 +465,7 @@ function run(repository, ref, files) {
             console.log(`Authenticated as application '${data.name}'`);
         }
         // find the installation id for the repository
-        console.log(`Determining installation id for repository '${repository}'`);
+        console.log(`Determining installation id for repository '${repositories[0]}'`);
         var installationId = null;
         try {
             for (var _d = true, _e = __asyncValues(app.eachInstallation.iterator()), _f; _f = yield _e.next(), _a = _f.done, !_a;) {
@@ -489,13 +491,25 @@ function run(repository, ref, files) {
             finally { if (e_1) throw e_1.error; }
         }
         if (!installationId) {
-            throw new Error(`Failed to find installation id for '${repository}'`);
+            throw new Error(`Failed to find installation id for '${repositories[0]}'`);
         }
+        // now split up all the repositories provided into just the names, and pass those to the token request
+        const repositoryNames = [];
+        repositories.forEach(repository => {
+            const repository_parts = repository.split('/');
+            if (repository_parts.length < 2 || !repository_parts[1]) {
+                throw new Error(`Item "${repository}" does not contain a second element.`);
+            }
+            if (repository_parts[0] !== repositoryOwner) {
+                throw new Error(`Item "${repository}" is not owned by the same owner as "${repositories[0]}".`);
+            }
+            repositoryNames.push(repository_parts[1]);
+        });
         // create an access token for the repository
         const octokit = yield app.getInstallationOctokit(installationId);
         const { data: accessTokenData } = yield octokit.request('POST /app/installations/{installation_id}/access_tokens', {
             installation_id: installationId,
-            repositories: [repositoryName],
+            repositories: repositoryNames,
             permissions: {
                 contents: 'read',
             },
@@ -619,14 +633,14 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.create = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const rest_1 = __nccwpck_require__(5767);
-function run(repository, ref, files) {
+function run(repositories, ref, files) {
     return __awaiter(this, void 0, void 0, function* () {
         // validate Gitlab inputs
         const token = process.env.PEW_GITLAB_TOKEN;
         if (!token) {
             throw new Error('Gitlab repositories must supply `env.PEW_GITLAB_TOKEN`');
         }
-        const repositoryUri = new URL(repository);
+        const repositoryUri = new URL(repositories[0]);
         const projectName = repositoryUri.pathname.substr(1);
         const api = new rest_1.Gitlab({
             host: repositoryUri.origin,

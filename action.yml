@@ -2,11 +2,11 @@ name: pew-actions/repo-data
 description: Acquire repository data
 
 inputs:
-  repository:
-    description: 'Repostiory to access'
+  repositories:
+    description: 'A semicolon-separated list of repositories to access. All repositories must belong to the same owner. The first item in the list must be the repository being built and at least one item must be provided.'
     required: true
   ref:
-    description: 'Ref of the repostiory to access'
+    description: 'Ref of the repository being built to access'
     required: true
   provider:
     description: 'Source control provider'

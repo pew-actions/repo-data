@@ -25,8 +25,8 @@ async function run(): Promise<void> {
 
   try {
 
-    const repository = core.getInput('repository')
-    if (!repository) {
+    const repositories = core.getInput('repositories').split(';')
+    if (!repositories) {
       core.setFailed('No repository supplied to the action')
       return
     }
@@ -70,7 +70,7 @@ async function run(): Promise<void> {
     }
 
     const providerImpl = await providerFactory()
-    const repoInfo: RepositoryInfo = await providerImpl.getInfo(repository, ref, Array.from(filePathToEnv.keys()))
+    const repoInfo: RepositoryInfo = await providerImpl.getInfo(repositories, ref, Array.from(filePathToEnv.keys()))
     core.setOutput('token', repoInfo.token)
     core.setOutput('commit', repoInfo.commit)
     console.log(`Resolved ${ref} to: ${repoInfo.commit}`)
