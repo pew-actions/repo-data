@@ -436,9 +436,23 @@ const core = __importStar(__nccwpck_require__(2186));
 const core_1 = __nccwpck_require__(6762);
 const app_1 = __nccwpck_require__(4389);
 const github_1 = __nccwpck_require__(5438);
-function run(repositories, ref, files) {
+function getToken(repositories) {
     var _a, e_1, _b, _c;
     return __awaiter(this, void 0, void 0, function* () {
+        // special case: 1 repository that matches our current repo
+        // use builtin github token
+        let fetchToken;
+        if (repositories.length === 1) {
+            const repository = repositories[0];
+            if (repository.toLowerCase() === (process.env.GITHUB_REPOSITORY || '').toLowerCase()) {
+                const defaultToken = core.getInput('token');
+                if (defaultToken) {
+                    console.log('Using runtime GitHub token for fetch token');
+                    fetchToken = defaultToken;
+                }
+            }
+        }
+        console.log('Authentication as GitHub builder');
         // validate GitHub inputs
         const applicationId = process.env.PEW_GITHUB_APPID || '239145';
         if (!applicationId) {
@@ -519,6 +533,23 @@ function run(repositories, ref, files) {
         // output repositories with permissions
         const actualRepositories = (accessTokenData.repositories || [{ full_name: 'all' }]).map(function (repository) { return repository.full_name; });
         console.log(`Access token granted for ${actualRepositories}`);
+        return {
+            fetchToken: fetchToken || accessTokenData.token,
+            applicationToken: accessTokenData.token,
+        };
+    });
+}
+function run(repositories, ref, files) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // we'll use the first entry in the repositories to determine the owner. All other private repos must be under the same owner
+        console.log(`Received repositories: '${repositories}'`);
+        const parts = repositories[0].split('/');
+        if (parts.length !== 2) {
+            throw new Error(`Invalid repository format for '${repositories[0]}'`);
+        }
+        const repositoryOwner = parts[0];
+        const repositoryName = parts[1];
+        const tokens = yield getToken(repositories);
         // reformat pull requests to a git ref name
         var commitRef = ref;
         const rePullRequest = /^(\d+)\/merge$/;
@@ -527,7 +558,7 @@ function run(repositories, ref, files) {
             commitRef = `refs/pull/${pullRequestMatch[1]}/head`;
         }
         // determine the checkout ref
-        const github = (0, github_1.getOctokit)(accessTokenData.token);
+        const github = (0, github_1.getOctokit)(tokens.applicationToken);
         const { data: commitResponse } = yield github.rest.repos.getCommit({
             owner: repositoryOwner,
             repo: repositoryName,
@@ -559,7 +590,7 @@ function run(repositories, ref, files) {
             }
         }
         return {
-            token: accessTokenData.token,
+            token: tokens.fetchToken,
             commit: commitSha,
             commitDate: new Date(commitDate),
             files: repoFiles,
