@@ -4,7 +4,28 @@ import { App as GithubApp } from '@octokit/app'
 import { getOctokit } from '@actions/github'
 import { RepositoryInfo, RepositoryFile, SourceProvider } from '../types'
 
-async function run(repositories: string[], ref: string, files: string[]): Promise<RepositoryInfo> {
+type TokenPair = {
+  fetchToken: string
+  applicationToken: string
+}
+
+async function getToken(repositories: string[]): Promise<TokenPair> {
+  // special case: 1 repository that matches our current repo
+  // use builtin github token
+  let fetchToken: string | undefined
+  if (repositories.length === 1) {
+    const repository = repositories[0]
+    if (repository.toLowerCase() === (process.env.GITHUB_REPOSITORY || '').toLowerCase()) {
+      const defaultToken = core.getInput('token')
+      if (defaultToken) {
+        console.log('Using runtime GitHub token for fetch token')
+        fetchToken = defaultToken
+      }
+    }
+  }
+
+  console.log('Authentication as GitHub builder')
+
   // validate GitHub inputs
   const applicationId = process.env.PEW_GITHUB_APPID || '239145'
   if (!applicationId) {
@@ -54,7 +75,7 @@ async function run(repositories: string[], ref: string, files: string[]): Promis
   repositories.forEach(repository =>
   {
       const repository_parts = repository.split('/');
-      if (repository_parts.length < 2 || !repository_parts[1]) 
+      if (repository_parts.length < 2 || !repository_parts[1])
       {
           throw new Error(`Item "${repository}" does not contain a second element.`);
       }
@@ -76,7 +97,6 @@ async function run(repositories: string[], ref: string, files: string[]): Promis
       contents: 'read',
     },
   })
-
   core.setSecret(accessTokenData.token)
   core.saveState('githubToken', accessTokenData.token)
 
@@ -85,6 +105,26 @@ async function run(repositories: string[], ref: string, files: string[]): Promis
     function(repository) { return repository.full_name }
   )
   console.log(`Access token granted for ${actualRepositories}`)
+
+  return {
+    fetchToken: fetchToken || accessTokenData.token,
+    applicationToken: accessTokenData.token,
+  }
+}
+
+async function run(repositories: string[], ref: string, files: string[]): Promise<RepositoryInfo> {
+
+  // we'll use the first entry in the repositories to determine the owner. All other private repos must be under the same owner
+  console.log(`Received repositories: '${repositories}'`)
+  const parts = repositories[0].split('/')
+  if (parts.length !== 2) {
+    throw new Error(`Invalid repository format for '${repositories[0]}'`)
+  }
+
+  const repositoryOwner = parts[0]
+  const repositoryName = parts[1]
+
+  const tokens = await getToken(repositories)
 
   // reformat pull requests to a git ref name
   var commitRef = ref
@@ -95,7 +135,7 @@ async function run(repositories: string[], ref: string, files: string[]): Promis
   }
 
   // determine the checkout ref
-  const github = getOctokit(accessTokenData.token)
+  const github = getOctokit(tokens.applicationToken)
   const { data: commitResponse } = await github.rest.repos.getCommit({
     owner: repositoryOwner,
     repo: repositoryName,
@@ -130,7 +170,7 @@ async function run(repositories: string[], ref: string, files: string[]): Promis
   }
 
   return {
-    token: accessTokenData.token,
+    token: tokens.fetchToken,
     commit: commitSha,
     commitDate: new Date(commitDate),
     files: repoFiles,
