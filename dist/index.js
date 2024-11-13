@@ -116,10 +116,12 @@ const buildname = __importStar(__nccwpck_require__(5581));
 const github = __importStar(__nccwpck_require__(4498));
 const gitlab = __importStar(__nccwpck_require__(5965));
 const bitbucket = __importStar(__nccwpck_require__(4815));
+const perforce = __importStar(__nccwpck_require__(7902));
 const allProviders = {
     github: github.create,
     gitlab: gitlab.create,
     bitbucket: bitbucket.create,
+    perforce: perforce.create,
 };
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -721,6 +723,259 @@ function post() {
         const token = core.getState('gitlabToken');
         if (token) {
             ///TODO(mendsley): Look into delegating access token to workflow-scoped
+        }
+    });
+}
+function create() {
+    return __awaiter(this, void 0, void 0, function* () {
+        return {
+            getInfo: run,
+            postAction: post,
+        };
+    });
+}
+exports.create = create;
+
+
+/***/ }),
+
+/***/ 7902:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.create = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const exec = __importStar(__nccwpck_require__(1514));
+const fs = __importStar(__nccwpck_require__(7147));
+const path = __importStar(__nccwpck_require__(1017));
+function validateRef(ref) {
+    if (ref === '#head') {
+        return true;
+    }
+    const changelistRegexp = /^@\d+$/;
+    if (ref.match(changelistRegexp)) {
+        return true;
+    }
+    return false;
+}
+function runCmd(cmd, opts) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const exitCode = yield exec.exec(cmd, opts.args, {
+            env: opts.env,
+        });
+        if (exitCode !== 0) {
+            throw new Error(`p4.exe returned error ${exitCode}`);
+        }
+    });
+}
+function runP4(opts) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const exitCode = yield exec.exec('p4.exe', opts.args, {
+            env: opts.env,
+        });
+        if (exitCode !== 0) {
+            throw new Error(`p4.exe returned error ${exitCode}`);
+        }
+    });
+}
+function runP4JSON(opts) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let output = '';
+        const args = ['-Mj', '-Ztag'].concat(opts.args);
+        const exitCode = yield exec.exec('p4.exe', args, {
+            env: opts.env,
+            listeners: {
+                stdout: (data) => {
+                    output += data.toString();
+                },
+            },
+        });
+        if (exitCode !== 0) {
+            throw new Error(`p4.exe returned error ${exitCode}`);
+        }
+        return output.split('\n').filter(line => line.length > 0).map(line => JSON.parse(line));
+    });
+}
+function run(repositories, ref, files) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (repositories.length > 1) {
+            throw new Error('Perforce provider only supports a single repository');
+        }
+        if (files.length > 0) {
+            throw new Error('Perforce provider does not support fetching files yet');
+        }
+        if (!validateRef(ref)) {
+            throw new Error(`Unsupported perforce ref '${ref}'`);
+        }
+        const p4user = process.env.PEW_P4USER;
+        if (!p4user) {
+            throw new Error(`Repository must set the PEW_P4USER secret at https://github.com/${process.env.GITHUB_REPOSITORY}/settings/secrets/actions`);
+        }
+        const p4pass = process.env.PEW_P4PASS;
+        if (!p4pass) {
+            throw new Error(`Repository must set the PEW_P4PASS secret at https://github.com/${process.env.GITHUB_REPOSITORY}/settings/secrets/actions`);
+        }
+        const p4clientTemplate = process.env.PEW_P4_CLIENT_TEMPLATE;
+        if (!p4clientTemplate) {
+            throw new Error('Repository must set the p4-client-template input in its workflow');
+        }
+        // add trust for P4 server
+        const perforceServer = repositories[0];
+        if (perforceServer.startsWith('ssl:')) {
+            const fingerprint = process.env.PEW_P4PORT_FINGERPRINT;
+            if (!fingerprint) {
+                throw new Error(`Repository must set the PEW_P4PORT_FINGERPRINT variable at https://github.com/${process.env.GITHUB_REPOSITORY}/settings/variables/actions`);
+            }
+            core.startGroup('Set P4 trust fingerprint');
+            yield runP4({
+                args: ['trust', '-i', fingerprint],
+                env: {
+                    P4PORT: perforceServer,
+                },
+            });
+            core.endGroup();
+            core.saveState('p4-trust-port', perforceServer);
+        }
+        const p4env = {
+            P4PORT: perforceServer,
+            P4USER: p4user,
+        };
+        // login to the perforce server
+        core.startGroup('Login to P4 server');
+        const tempFile = path.join(__dirname, '.p4auth');
+        try {
+            fs.writeFileSync(tempFile, p4pass, { mode: 0o400 });
+            console.log(tempFile);
+            yield runCmd('cmd.exe', {
+                args: ['/C', `p4 login < ${tempFile}`],
+                env: {
+                    P4PORT: p4env.P4PORT,
+                    P4USER: p4env.P4USER,
+                    P4PASSWD: tempFile,
+                },
+            });
+            core.saveState('p4-login-port', perforceServer);
+            core.saveState('p4-login-user', p4user);
+        }
+        finally {
+            fs.rmSync(tempFile, { force: true });
+        }
+        core.endGroup();
+        core.startGroup('Get template workspace');
+        const clientSpecs = yield runP4JSON({
+            args: ['client', '-o', p4clientTemplate],
+            env: p4env,
+        });
+        core.endGroup();
+        const clientSpec = clientSpecs[0];
+        // get the set of files to check
+        const viewSpec = [];
+        for (const key in clientSpec) {
+            if (key.startsWith('View')) {
+                const view = clientSpec[key].split(' ');
+                if (view.length !== 2) {
+                    throw new Error(`Malformed client view '${view}'`);
+                }
+                viewSpec.push(view[0] + ref);
+            }
+        }
+        core.startGroup('Get changelist');
+        const changes = yield runP4JSON({
+            args: ['changes', '-m1', '-t'].concat(viewSpec),
+            env: p4env,
+        });
+        core.endGroup();
+        // get the latest changeset
+        let recentChange = null;
+        for (const change of changes) {
+            const cl = parseInt(change.change);
+            if (!recentChange || cl > recentChange.change) {
+                recentChange = change;
+            }
+        }
+        if (!recentChange) {
+            throw new Error('Failed to find a suitable changelist');
+        }
+        const clDate = new Date(recentChange.time * 1000);
+        return {
+            commit: `@${recentChange.change}`,
+            commitDate: clDate,
+            token: 'p4ticket',
+            files: [],
+        };
+    });
+}
+function post() {
+    return __awaiter(this, void 0, void 0, function* () {
+        // logout from server
+        const loginServer = core.getState('p4-login-port');
+        const loginUser = core.getState('p4-login-user');
+        if (loginServer && loginUser) {
+            core.startGroup('Logout from P4');
+            try {
+                yield runP4({
+                    args: ['logout'],
+                    env: {
+                        P4PORT: loginServer,
+                        P4USER: loginUser,
+                    }
+                });
+            }
+            catch (_a) {
+                // ignore errors
+            }
+            core.endGroup();
+        }
+        // revoke trust to server
+        const trustServer = core.getState('p4-trust-port');
+        if (trustServer) {
+            core.startGroup('Revoke P4 trust');
+            try {
+                yield runP4({
+                    args: ['trust', '-d'],
+                    env: {
+                        P4PORT: trustServer,
+                    },
+                });
+            }
+            catch (_b) {
+                // ignore errors
+            }
+            core.endGroup();
         }
     });
 }
