@@ -180,7 +180,7 @@ async function run(repositories: string[], ref: string, files: string[]): Promis
   return {
     commit: `@${recentChange.change}`,
     commitDate: clDate,
-    token: 'p4ticket',
+    token: p4user,
     files: [],
   }
 }
