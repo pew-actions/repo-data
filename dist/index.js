@@ -934,7 +934,7 @@ function run(repositories, ref, files) {
         return {
             commit: `@${recentChange.change}`,
             commitDate: clDate,
-            token: 'p4ticket',
+            token: p4user,
             files: [],
         };
     });
