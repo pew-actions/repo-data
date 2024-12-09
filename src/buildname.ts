@@ -19,7 +19,7 @@ export async function generate(desc: BuildDescription): Promise<BuildName> {
   var templateName = template
   templateName = templateName.replace('{hash}', gitHash)
 
-  const runNumber = process.env.GITHUB_RUN_NUMBER
+  const runNumber = process.env.GITHUB_RUN_NUMBER!
   const numberedBranchName = `${desc.ref}${runNumber}`
 
   templateName = templateName.replace('{datetime}', longDate)
@@ -31,5 +31,9 @@ export async function generate(desc: BuildDescription): Promise<BuildName> {
   return {
     template: templateName,
     short: shortName,
+    time: desc.date,
+    ref: desc.ref,
+    commit: gitHash,
+    build: runNumber,
   }
 }

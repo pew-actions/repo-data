@@ -24,4 +24,8 @@ export type BuildDescription = {
 export type BuildName = {
   template: string
   short: string
+  time: Date
+  ref: string
+  commit: string
+  build: string
 }
