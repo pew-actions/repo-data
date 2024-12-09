@@ -64,6 +64,10 @@ function generate(desc) {
         return {
             template: templateName,
             short: shortName,
+            time: desc.date,
+            ref: desc.ref,
+            commit: gitHash,
+            build: runNumber,
         };
     });
 }
@@ -178,9 +182,12 @@ function run() {
             });
             core.setOutput('build-template', buildName.template);
             core.setOutput('build-short', buildName.short);
+            core.setOutput('build-components', JSON.stringify(buildName));
             console.log('Build names:');
             console.log(`  template: ${buildName.template}`);
             console.log(`  short: ${buildName.short}`);
+            console.log('---- Components ----');
+            console.log(JSON.stringify(buildName, null, 2));
             // export files
             for (const file of repoInfo.files) {
                 const envForFile = filePathToEnv.get(file.path);

@@ -25,6 +25,8 @@ outputs:
     description: 'Template for build name'
   build-short:
     description: 'Short name for a build'
+  build-components:
+    description: 'JSON object of build name components'
 
 runs:
   using: node20
