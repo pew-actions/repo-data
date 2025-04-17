@@ -75,7 +75,7 @@ async function run(repositories: string[], ref: string, files: string[]): Promis
 
   const p4user = process.env.PEW_P4USER
   if (!p4user) {
-    throw new Error(`Repository must set the PEW_P4USER secret at https://github.com/${process.env.GITHUB_REPOSITORY}/settings/secrets/actions`)
+    throw new Error(`Repository must set the PEW_P4USER secret or variable at https://github.com/${process.env.GITHUB_REPOSITORY}/settings/secrets/actions`)
   }
 
   const p4pass = process.env.PEW_P4PASS
