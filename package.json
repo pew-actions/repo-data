@@ -2,22 +2,23 @@
   "name": "repo-data",
   "version": "1.0.0",
   "description": "GitHub action to collect repository data",
+  "type": "module",
   "main": "lib/main.js",
   "scripts": {
-    "build": "tsc && ncc build"
+    "build": "tsc --noEmit && esbuild src/main.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/index.js"
   },
   "devDependencies": {
-    "@types/node": "^22.7.5",
-    "@vercel/ncc": "^0.36.1",
-    "typescript": "^4.8.4"
+    "@types/node": "^25.5.0",
+    "esbuild": "^0.27.4",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@actions/core": "^1.10.1",
-    "@actions/exec": "^1.1.1",
-    "@actions/github": "^6.0.0",
-    "@gitbeaker/rest": "^40.4.0",
-    "@octokit/app": "^14.0.2",
-    "@octokit/core": "^5.1.0"
+    "@actions/core": "^3.0.0",
+    "@actions/exec": "^3.0.0",
+    "@actions/github": "^9.0.0",
+    "@gitbeaker/rest": "^43.8.0",
+    "@octokit/app": "^16.1.2",
+    "@octokit/core": "^7.0.6"
   },
   "engines": {
     "node": ">= 24"
