@@ -20,6 +20,6 @@
     "@octokit/core": "^5.1.0"
   },
   "engines": {
-    "node": ">= 20"
+    "node": ">= 24"
   }
 }
